@@ -1,26 +1,17 @@
 // Libraries
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+
 #include <IRremote.h>
 #include <IRremoteInt.h>
 #include "Direction.cpp"
 #include "Game.cpp"
 #include "Remote.cpp"
+#include "Display.h"
 
 // defines Pin
 #define RIGHTBUTTON   3
 #define LEFTBUTTON    18
 #define BUZZER        11
 #define REMOTE        13
-
-// oled stuff
-#define OLED_SCL      21
-#define OLED_SDA      20
-#define SCREEN_WIDTH  128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64  // OLED display height, in pixels
-#define OLED_RESET    4
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1, 400000UL, 100000UL);
 
 int pointRight = 0;
 int pointLeft = 0;
@@ -45,19 +36,12 @@ Game game = FINISHED;
 Direction dir = DIR_LEFT;
 Remote previous;
 
+Display display;
+
 void setup() {
   Serial.begin(9600);
 
-  // initializing oled display
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  display.clearDisplay();
-  display.setTextColor(WHITE);
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  display.print("Copyright (c) 2018\nChristian\nSeiler\nServices");
-  display.setCursor(0, 56);
-  display.print("christianseiler.ch");
-  display.display();
+  display.init();
 
   // IR Remote setup
   ir.enableIRIn();
@@ -89,7 +73,7 @@ void loop() {
 
   // 
   if (game == FINISHED) {
-    displayInstructions();
+    display.showInstructions();
     LED(game);
     game = setGame();
   } else if (game == WIN) {
@@ -147,20 +131,12 @@ Game setGame() {
   Remote remote = (Remote) results.value;
   if (remote != previous && remote == ONE) {
     previous = remote;
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Playing");
-    display.setCursor(20, 0);
-    display.print("Single Player");
+    display.setSinglePlayerGame();
     delay(2000);
     return SINGLEPLAYER;
   } else if (remote != previous && remote == TWO) {
     previous = remote;
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Playing");
-    display.setCursor(20, 0);
-    display.print("Double Player");
+    display.setDoublePlayerGame();
     delay(2000);
     return DOUBLEPLAYER;
   }
@@ -171,58 +147,16 @@ Game setGame() {
 // Display Score for each state (single, double, win)
 void displayScore() {
   if (game == SINGLEPLAYER) {
-    
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Score");
-    display.setCursor(0, 20);
-    display.print("Right");
-    display.setCursor(100, 20);
-    display.print(pointRight);
-    display.display();
-    
+    display.showSingleScore(pointRight);
   } else if (game == DOUBLEPLAYER) {
-    
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Score");
-    display.setCursor(0, 20);
-    display.print("Left");
-    display.setCursor(100, 20);
-    display.print(pointLeft);
-    display.setCursor(0, 40);
-    display.print("Right");
-    display.setCursor(100, 40);
-    display.print(pointRight);
-    display.display();
-    
+    display.showDoubleScore(pointRight, pointLeft);
   } else if (game == WIN) {
-    
     finish();
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("The Winner is");
-    display.setCursor(0, 20);
-    display.print(pointLeft > pointRight ? "LEFT" : "RIGHT");
-    display.display();
+    display.showFinalScore(pointRight, pointLeft);
     delay(2000);
     game = FINISHED;
   }
 }
-
-
-void displayInstructions() {
-  
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("Welcome to\nFast Lights!");
-  display.setCursor(0, 30);
-  display.println("Press:");
-  display.println("1 for Single Player");
-  display.println("2 for Double Player");
-  display.display();
-}
-
 
 // determine which led to light
 void LED(Game game) {
@@ -247,7 +181,6 @@ void LED(Game game) {
       }
     }
   } else {
-
     // game is on
     // get a random number between 0 and the number of lamps
     int n = random(COUNT);
